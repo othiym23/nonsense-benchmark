@@ -28,6 +28,14 @@ from being a test of how quickly you can exhaust the available file descriptors
 and / or sockets on the server's host, the workload should stay fairly light,
 in the 10-30ms range.
 
+### The protocol
+
+Connect to port 1337 on the target machine. As soon as the connection is
+established, the server sends 'ok\n'. The client then sends the string to be
+hashed. The server then computes a working nonce and returns the original
+string, ':', and the computed nonce, and closes the connection. Keep-Alive and
+pipelining could be added, but that would defeat the whole point.
+
 ### Caveats
 
 The client should not trust the server:
