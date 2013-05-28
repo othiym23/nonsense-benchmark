@@ -46,9 +46,8 @@ var prover = createServer(function (conn) {
   });
 
   conn.write('ok\n', function acked() {
-    conn.on('readable', function ready() {
-      var hash;
-      if (!(hash = conn.read())) return;
+    conn.once('readable', function ready() {
+      var hash = conn.read();
 
       conn.write(hash + ':' + work(hash), function done() {
         conn.end();
