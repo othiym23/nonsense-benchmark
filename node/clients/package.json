@@ -1,0 +1,19 @@
+{
+  "name": "simple-client",
+  "version": "0.0.0",
+  "description": "Simple recursive client to the proof-of-work concurrency server.",
+  "main": "client.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": "",
+  "keywords": [
+    "proof-of-work",
+    "client"
+  ],
+  "author": "Forrest L Norvell <ogd@aoaioxxysz.net>",
+  "license": "BSD",
+  "dependencies": {
+    "fast-stats": "0.0.1"
+  }
+}
