@@ -1,15 +1,26 @@
 'use strict';
 
-var util       = require('util')
-  , connect    = require('net').connect
-  , Statistics = require('fast-stats').Stats
-  , verify     = require('../verify.js')
+var util         = require('util')
+  , randomBytes  = require('crypto').randomBytes
+  , Statistics   = require('fast-stats').Stats
+  , requestProof = require('../request-proof.js')
+  , verify       = require('../verify.js')
   ;
 
 /*
  * CONSTANTS
  */
-var SEED = 'e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e';
+/* Might require ulimits and sysctls to be raised on OSX:
+ *
+ * ulimit -n 8192
+ *
+ * sudo sysctl -w net.inet.ip.portrange.first=32768
+ * sudo sysctl -w net.inet.ip.portrange.hifirst=32768
+ */
+var CONCURRENCY = 64
+  , WARMUP      = 2000
+  , TOTAL       = 10 * WARMUP
+  ;
 
 // initial values
 var timings     = new Statistics()
@@ -18,6 +29,10 @@ var timings     = new Statistics()
 
 function hrToSeconds(hrduration) {
   return (hrduration[0] + hrduration[1] / 1e9).toFixed(2);
+}
+
+function uToSeconds(usduration) {
+  return usduration / 1e6;
 }
 
 function dumpStats(stats, duration) {
@@ -33,8 +48,9 @@ function dumpStats(stats, duration) {
               iqr.stddev().toFixed(0));
 
   if (duration) {
-    console.log("Throughput: %srpm.",
-                (stats.length / hrToSeconds(duration) * 60).toFixed(2));
+    console.log("Throughput: %srpm (IQR adjusted: %srpm).",
+                (stats.length / hrToSeconds(duration) * 60).toFixed(2),
+                (iqr.length   / uToSeconds(iqr.sum)   * 60 * CONCURRENCY).toFixed(2));
   }
 }
 
@@ -45,87 +61,80 @@ process.on('SIGINT', function interrupted() {
   process.exit(0);
 });
 
-function requestProof(hash, callback) {
-  var start = process.hrtime();
+function genSeed(callback) {
+  randomBytes(32, function (err, rando) {
+    if (err) return callback(err);
 
-  var client = connect(1337, 'localhost');
-  client.setEncoding('ascii');
-  client.on('error', callback);
-
-  function getProof() {
-    var payload = client.read();
-    client.end();
-
-    callback(null, hash, payload, process.hrtime(start));
-  }
-
-  function checkHandshake() {
-    var handshake = client.read();
-
-    if (handshake !== 'ok\n') return callback(new Error('bad handshake: ' + handshake));
-
-    client.write(hash, function handshook() {
-      client.once('readable', getProof);
-    });
-  }
-
-  client.on('connect', function getHandshake() {
-    client.once('readable', checkHandshake);
+    callback(null, rando.toString('hex'));
   });
 }
 
 function generateRun(count, update, finish) {
   var i     = 0
     , start = process.hrtime()
+    , limit = Math.min(CONCURRENCY, TOTAL)
     ;
 
-  var checker = function (error, hash, payload, hrduration) {
-    if (i++ === count) return finish(count, process.hrtime(start));
-
+  function seeded(error, seed) {
     if (error) {
-      update(error);
-    } else {
-      var tuple  = payload.split(':')
-        , match  = hash === tuple[0]
-        , valid  = verify(tuple[0], tuple[1])
-        , millis = hrduration[0] * 1e6 + hrduration[1] / 1e3
-        ;
+      console.error("error generating seed: %s", error.message);
+      process.exit(-1);
+    }
 
-      if (!match) {
-        return update(new Error(util.format("input %s !== %s", hash, tuple[0])));
-      }
-      else if (!valid) {
-        return update(new Error(util.format("proof of work didn't verify: %s", payload)));
-      }
-      else {
-        update(null, millis);
+    var current = seed;
+    function checker(error, hash, payload, hrduration) {
+      if (error) {
+        update(error);
+      } else {
+        var tuple  = payload.split(':')
+          , match  = hash === tuple[0]
+          , valid  = verify(tuple[0], tuple[1])
+          ;
 
-        return requestProof(valid, checker);
+        if (!match) {
+          update(new Error(util.format("input %s !== %s", hash, tuple[0])));
+        }
+        else if (!valid) {
+          update(new Error(util.format("proof of work didn't verify: %s", payload)));
+        }
+        else {
+          var micros = hrduration[0] * 1e6 + hrduration[1] / 1e3;
+          update(null, micros);
+          current = valid;
+        }
+      }
+
+      i++;
+      if (i === count) {
+        finish(i, process.hrtime(start));
+      }
+      else if (i < count) {
+        requestProof(current, checker);
       }
     }
 
-    return requestProof(SEED, checker);
-  };
+    requestProof(current, checker);
+  }
 
-  return checker;
+  for (var worker = 0; worker < limit; worker++) genSeed(seeded);
 }
 
-function dryRun(error, millis) {
+function dryRun(error, micros) {
   if (error) console.error("got error during warmup: %s", error.message);
 
-  return millis;
+  return micros;
 }
 
-function benchmark(error, millis) {
+function benchmark(error, micros) {
   if (error) {
     console.error("got error while benchmarking: %s", error.message);
     badRequests++;
   }
   else {
-    timings.push(millis);
+    timings.push(micros);
   }
 
-  return millis;
+  return micros;
 }
 
 /**
@@ -133,11 +142,11 @@ function benchmark(error, millis) {
  * actually run 10000 requests for benchmarking.
  */
 console.log("Warming up...");
-requestProof(SEED, generateRun(1000, dryRun, function (count) {
+generateRun(WARMUP, dryRun, function (count) {
   console.log("Warmed up with %s requests. Benchmarking...", count);
 
-  requestProof(SEED, generateRun(10 * 1000, benchmark, function (count, hrduration) {
+  generateRun(TOTAL, benchmark, function (count, hrduration) {
     console.log("Made %s requests in %ss.", count, hrToSeconds(hrduration));
     dumpStats(timings, hrduration);
-  }));
-}));
+  });
+});
