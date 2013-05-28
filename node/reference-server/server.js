@@ -35,6 +35,16 @@ function work(input) {
  * input. Immediately does work and returns it in the format specified above.
  */
 var prover = createServer(function (conn) {
+  var remoteAddress = conn.remoteAddress
+    , remotePort    = conn.remotePort
+    ;
+
+  conn.on('error', function (error) {
+    console.log("error: %s from %s:%s",
+                error.message,
+                remoteAddress, remotePort);
+  });
+
   conn.write('ok\n', function acked() {
     conn.on('readable', function ready() {
       var hash;
