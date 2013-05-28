@@ -1,6 +1,6 @@
 'use strict';
 
-var util = require('util')
+var util       = require('util')
   , connect    = require('net').connect
   , Statistics = require('fast-stats').Stats
   , verify     = require('../verify.js')
@@ -16,15 +16,26 @@ var timings     = new Statistics()
   , badRequests = 0
   ;
 
-function dumpStats(stats) {
-  console.log("handled %s requests, %sµs mean, %sµs median",
-              stats.length, stats.amean().toFixed(0), stats.median().toFixed(0));
-  console.log("standard deviation of %s", stats.stddev().toFixed(0));
+function hrToSeconds(hrduration) {
+  return (hrduration[0] + hrduration[1] / 1e9).toFixed(2);
+}
+
+function dumpStats(stats, duration) {
+  if (badRequests > 0) console.log("WARNING: %s bad requests", badRequests);
+
+  console.log("\nHandled %s requests:        %sµs mean, %sµs median (stddev %s)",
+              stats.length, stats.amean().toFixed(0), stats.median().toFixed(0),
+              stats.stddev().toFixed(0));
 
   var iqr = stats.iqr();
-  console.log("after IQR filtering, %s requests, %sµs mean, %sµs median",
-              iqr.length, iqr.amean().toFixed(0), iqr.median().toFixed(0));
-  console.log("standard deviation of %s", iqr.stddev().toFixed(0));
+  console.log("IQR filtered to %s requests: %sµs mean, %sµs median (stddev %s)",
+              iqr.length, iqr.amean().toFixed(0), iqr.median().toFixed(0),
+              iqr.stddev().toFixed(0));
+
+  if (duration) {
+    console.log("Throughput: %srpm.",
+                (stats.length / hrToSeconds(duration) * 60).toFixed(2));
+  }
 }
 
 process.on('SIGINT', function interrupted() {
@@ -39,6 +50,7 @@ function requestProof(hash, callback) {
 
   var client = connect(1337, 'localhost');
   client.setEncoding('ascii');
+  client.on('error', callback);
 
   function getProof() {
     var payload = client.read();
@@ -63,31 +75,33 @@ function requestProof(hash, callback) {
 }
 
 function generateRun(count, update, finish) {
-  var i = 0
+  var i     = 0
     , start = process.hrtime()
     ;
 
   var checker = function (error, hash, payload, hrduration) {
-    if (error) return update(error);
+    if (i++ === count) return finish(count, process.hrtime(start));
 
-    var tuple  = payload.split(':')
-      , match  = hash === tuple[0]
-      , valid  = verify(tuple[0], tuple[1])
-      , millis = hrduration[0] * 1e6 + hrduration[1] / 1e3
-      ;
+    if (error) {
+      update(error);
+    } else {
+      var tuple  = payload.split(':')
+        , match  = hash === tuple[0]
+        , valid  = verify(tuple[0], tuple[1])
+        , millis = hrduration[0] * 1e6 + hrduration[1] / 1e3
+        ;
 
-    if (!match) {
-      return update(new Error(util.format("input %s !== %s", hash, tuple[0])));
-    }
-    else if (!valid) {
-      return update(new Error(util.format("proof of work didn't verify: %s", payload)));
-    }
-    else {
-      update(null, millis);
+      if (!match) {
+        return update(new Error(util.format("input %s !== %s", hash, tuple[0])));
+      }
+      else if (!valid) {
+        return update(new Error(util.format("proof of work didn't verify: %s", payload)));
+      }
+      else {
+        update(null, millis);
 
-      if (++i === count) return finish(count, process.hrtime(start));
-
-      return requestProof(valid, checker);
+        return requestProof(valid, checker);
+      }
     }
 
     return requestProof(SEED, checker);
@@ -97,14 +111,14 @@ function generateRun(count, update, finish) {
 }
 
 function dryRun(error, millis) {
-  if (error) console.error(error);
+  if (error) console.error("got error during warmup: %s", error.message);
 
   return millis;
 }
 
 function benchmark(error, millis) {
   if (error) {
-    console.error(error);
+    console.error("got error while benchmarking: %s", error.message);
     badRequests++;
   }
   else {
@@ -114,16 +128,16 @@ function benchmark(error, millis) {
   return millis;
 }
 
-function hrToSeconds(hrduration) {
-  return (hrduration[0] + hrduration[1] / 1e9).toFixed(2);
-}
-
+/**
+ * Actually run the tests -- run 1000 requests to ensure the server is stable, then
+ * actually run 10000 requests for benchmarking.
+ */
 console.log("Warming up...");
 requestProof(SEED, generateRun(1000, dryRun, function (count) {
   console.log("Warmed up with %s requests. Benchmarking...", count);
 
   requestProof(SEED, generateRun(10 * 1000, benchmark, function (count, hrduration) {
     console.log("Made %s requests in %ss.", count, hrToSeconds(hrduration));
-    dumpStats(timings);
+    dumpStats(timings, hrduration);
   }));
 }));
