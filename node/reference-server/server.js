@@ -8,13 +8,13 @@
  * Passing e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e should get back
  *   e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e:2c8
  */
-var createHash   = require('crypto').createHash
-  , createServer = require('net').createServer
+var createServer = require('net').createServer
+  , verify       = require('../verify.js')
   ;
 
 /**
  * Simple proof of work: concatenate the input string with a nonce, returning
- * the nonce when the last 3 digits of the hex-encoded SHA256 hash are '000'.
+ * the nonce when the last 2 digits of the hex-encoded SHA256 hash are '00'.
  * This version calculates the nonce by incrementing a number and converting it
  * to a hex string.
  *
@@ -26,11 +26,7 @@ function work(input) {
   while (true) {
     var nonce = id.toString(16);
 
-    var sha256 = createHash('sha256');
-    sha256.update(input);
-    sha256.update(nonce);
-
-    if (sha256.digest('hex').slice(-3) === '000') return nonce;
+    if (verify(input, nonce)) return nonce;
     else id++;
   }
 }
