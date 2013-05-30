@@ -1,0 +1,1 @@
+This should work on OSX and linux.  Edit the Make file to point to your boost installation and run 'make'.
