@@ -15,7 +15,7 @@
 #include "nonce.h"
 
 
-int main() {
+int main(int argc, char *argv[]) {
   int                 sock_fd;
   int                 new_fd;
   int                 sin_size;
@@ -61,7 +61,7 @@ int main() {
     exit(1);
   }
 
-  printf("\n\nClient           | Milliseconds | Result\n");
+  printf("\n\nClient           | Time         | Result\n");
   printf("-----------------+--------------+-------------------------------------------\n");
   // Start taking connections
   while (1) {
@@ -105,7 +105,7 @@ int main() {
       time_in_micros = ((1000000 * tv_end.tv_sec) + tv_end.tv_usec) - ((1000000 * tv_start.tv_sec) + tv_start.tv_usec);
 
       result[strlen(result) - 2] = '\0';  // strip off the \r\n now that we are done
-      printf("%16s | %12d | %s\n", inet_ntoa(remote_addr.sin_addr), (time_in_micros / 1000), result);
+      printf("%16s | %9d us | %s\n", inet_ntoa(remote_addr.sin_addr), time_in_micros, result);
       exit(0);
     }
     close(new_fd);
