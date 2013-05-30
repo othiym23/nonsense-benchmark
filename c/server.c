@@ -25,7 +25,6 @@ int main() {
   struct sockaddr_in  local_addr;
   struct sockaddr_in  remote_addr;
   struct sigaction    sa;
-  const char          handshake[] = "OK\r\n";
 
   if ((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
     printf("Unable to create socket\n");
@@ -83,7 +82,7 @@ int main() {
       unsigned char *nonce;
       int            bytes_in = 0;
 
-      if (send(new_fd, handshake, sizeof(handshake), 0) == -1) {
+      if (send(new_fd, SERVER_HELLO, strlen(SERVER_HELLO), 0) == -1) {
         printf("Failed to send handshake\n");
       }
 
