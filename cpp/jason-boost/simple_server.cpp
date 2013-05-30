@@ -3,7 +3,11 @@
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
 
+#ifdef __APPLE__
+#include <CommonCrypto/CommonDigest.h>
+#else
 #include <openssl/sha.h>
+#endif
 
 #define HASH_STR_SIZE 64
 #define OK_STR "ok\n"
@@ -48,7 +52,11 @@ private:
     unsigned int nonce = 0, nonce_str_len = 0;
     char *nonce_str;
 
+#ifdef __APPLE__
+    CC_SHA256_CTX context;
+#else
     SHA256_CTX context;
+#endif
 
     data_[HASH_STR_SIZE] = ':';
     nonce_str = (char*)data_ + HASH_STR_SIZE + 1;
@@ -56,10 +64,17 @@ private:
     while(true) {
       nonce_str_len = itoa_16(nonce, nonce_str);
 
+#ifdef __APPLE__
+      CC_SHA256_Init(&context);
+      CC_SHA256_Update(&context, data_, HASH_STR_SIZE);
+      CC_SHA256_Update(&context, nonce_str, nonce_str_len);
+      CC_SHA256_Final(result, &context);
+#else
       SHA256_Init(&context);
       SHA256_Update(&context, data_, bytes_transferred);
       SHA256_Update(&context, nonce_str, nonce_str_len);
       SHA256_Final(result, &context);
+#endif
 
       if(result[31] == 0)
         break;
