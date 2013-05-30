@@ -75,7 +75,7 @@ let main() =
     (fun s -> raise (Arg.Bad ("Don't know what to do with: " ^ s)))
     "usage: server [options]";
 
-  (* OCaml multithreading only uses one core(?!), so use multithreading *)
+  (* OCaml multithreading only uses one core(?!), so use multiprocessing *)
   let parallelizer = Netplex_mp.mp() in
   let factory = new prover_processor_factory in
 
