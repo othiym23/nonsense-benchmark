@@ -1,3 +1,11 @@
+(*
+ * To build this program requires that you have OCaml, Findlib,
+ * cryptokit, and Ocamlnet 3.x+ installed. I leave as an exercise
+ * to the interested reader to figure out how to do that, but I
+ * will say it took me the better part of an evening to get all the
+ * dependencies to compile and install using a set of half-baked
+ * Homebrew recipes I will probably publish as a tap.
+ *)
 let rec prover hash nonce =
     let hexnonce = Printf.sprintf "%x" nonce in
 
@@ -24,6 +32,7 @@ class prover_processor : Netplex_types.processor =
 object(self)
   inherit Netplex_kit.processor_base empty_hooks
 
+  (* FIXME: this needs to be converted to work with Equeue to work properly *)
   method process ~when_done container fd proto_name =
     let rch = new Netchannels.socket_descr fd in
     let ich = Netchannels.lift_in  (`Raw (rch :> Netchannels.raw_in_channel)) in
