@@ -24,8 +24,8 @@ public class NonceServer {
 		bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
 			public ChannelPipeline getPipeline() throws Exception {
 				return Channels.pipeline(
-						new StringEncoder(CharsetUtil.UTF_8),
-						new StringDecoder(CharsetUtil.UTF_8),
+						new StringEncoder(CharsetUtil.US_ASCII),
+						new StringDecoder(CharsetUtil.US_ASCII),
 						new NonceServerHandler());
 			}
 		});

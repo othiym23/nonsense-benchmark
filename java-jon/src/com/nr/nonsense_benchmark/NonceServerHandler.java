@@ -3,15 +3,18 @@ package com.nr.nonsense_benchmark;
 import java.security.MessageDigest;
 
 import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 
 public class NonceServerHandler extends SimpleChannelUpstreamHandler {
-
+	@Override
+	public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) {
+		e.getChannel().write("ok\n");
+	}
+	
 	@Override
 	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-		e.getChannel().write("ok\n");
-
 		String challenge = (String) e.getMessage();
 		String candidate = null;
 
