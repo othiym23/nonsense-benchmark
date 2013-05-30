@@ -86,9 +86,9 @@ function generateRun(count, update, finish) {
       if (error) {
         update(error);
       } else {
-        var tuple  = payload.split(':')
-          , match  = hash === tuple[0]
-          , valid  = verify(tuple[0], tuple[1])
+        var tuple = payload.split(':')
+          , match = hash === tuple[0]
+          , valid = verify(tuple[0], tuple[1])
           ;
 
         if (!match) {
