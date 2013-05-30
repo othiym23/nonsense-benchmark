@@ -1,2 +1,2 @@
 server: server.ml
-	ocamlfind opt -package sha.sha256 -linkpkg server.ml -o server
+	ocamlfind opt -package cryptokit,netplex -linkpkg server.ml -o server
