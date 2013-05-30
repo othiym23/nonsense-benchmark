@@ -13,7 +13,7 @@ main(int argc, char *argv[]) {
   unsigned long   time_in_micros;
 
   if(!argv[1]) {
-    printf("Usage: mdtest <string>\n");
+    printf("Usage: nonce_test <string>\n");
     exit(1);
   }
 
