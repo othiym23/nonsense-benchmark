@@ -24,26 +24,26 @@ if (cluster.isMaster) {
   });
 }
 else {
-  createServer(function (conn) {
+  createServer(function connected(conn) {
     var remoteAddress = conn.remoteAddress
       , remotePort    = conn.remotePort
       ;
 
-    conn.on('error', function (error) {
-      console.log("error: %s from %s:%s",
-                  error.message, remoteAddress, remotePort);
-    });
+    conn.on('readable', function ready() {
+      var hash;
+      if (!(hash = conn.read())) return;
 
-    conn.write('ok\n', function acked() {
-      conn.once('readable', function ready() {
-        var hash = conn.read();
-
-        conn.write(hash + ':' + work(hash), function done() {
-          conn.end();
-        });
+      conn.write(hash + ':' + work(hash), function done() {
+        conn.end();
       });
     });
-  }).listen(1337, function () {
+
+    conn.on('error', function (error) {
+      console.log("error: %s from %s:%s", error.message, remoteAddress, remotePort);
+    });
+
+    conn.write('ok\n');
+  }).listen(1337, function listening() {
     console.log('worker %s ready', cluster.worker.id);
   });
 }
