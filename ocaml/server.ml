@@ -18,8 +18,8 @@ let rec prover hash nonce =
 
     let proved input =
         let proof    = hashex input in
-        let sentinel = String.sub proof 61 3 in
-        sentinel = "000" in
+        let sentinel = String.sub proof 62 2 in
+        sentinel = "00" in
 
     if proved (hash ^ hexnonce)
       then hash ^ ":" ^ hexnonce
