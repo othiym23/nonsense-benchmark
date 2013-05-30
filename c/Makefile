@@ -1,12 +1,14 @@
 CC=gcc
 CFLAGS=-O2 -I.
-DEPS=nonce.h
+DEPS=nonce.h server.h
 OBJ=nonce.o
 LIBS=-lssl -lcrypto
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
+server: server.o $(OBJ)
+	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
 
 #
 # Exe for manual testing
@@ -19,4 +21,5 @@ clean:
 
 distclean: clean
 	rm -f nonce_test
+	rm -f server
 
