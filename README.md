@@ -8,7 +8,7 @@ how different languages scale under a specific kind of load.
 Right now there's a simple reference server, a multi-CPU clustered server, and
 a highly concurrent benchmarking client. All are written in Node. To get the
 server working, cd into `node/clients` and run `npm install`, assuming you have
-Node installed.
+Node installed. **NODE O.10.X IS REQUIRED.**
 
 The intention of this repo is that other implementations will be added. Send me
 pull requests to add yours.
