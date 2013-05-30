@@ -6,7 +6,7 @@
  * Results are <input>:<nonce>
  *
  * Passing e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e should get back
- *   e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e:2c8
+ *   e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e:5a
  */
 var createServer = require('net').createServer
   , verify       = require('../verify.js')
