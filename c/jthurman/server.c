@@ -17,14 +17,9 @@
 
 int main(int argc, char *argv[]) {
   int                 sock_fd;
-  int                 new_fd;
-  int                 sin_size;
+  int                 i;
   int                 yes = 1;
-  unsigned long       time_in_micros;
-  struct timeval      tv_start, tv_end;
   struct sockaddr_in  local_addr;
-  struct sockaddr_in  remote_addr;
-  struct sigaction    sa;
 
   if ((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
     printf("Unable to create socket\n");
@@ -46,77 +41,51 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  if (listen(sock_fd, MAX_BACKLOG) == -1) {
-    printf("Unable to listen\n");
-    exit(1);
-  }
-  printf("Listening on port %d\n", SERVER_PORT);
-
-  sa.sa_handler = sigchild_handler;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_RESTART;
-
-  if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-    printf("Problem with sigaction\n");
-    exit(1);
-  }
-
-  printf("\n\nClient           | Time         | Result\n");
-  printf("-----------------+--------------+-------------------------------------------\n");
-  // Start taking connections
-  while (1) {
-    sin_size = sizeof(struct sockaddr_in);
-
-    if ((new_fd = accept(sock_fd, (struct sockaddr *)&remote_addr, &sin_size)) == -1 ) {
-      printf("Unable to accept connection!\n");
-      continue;
-    }
-
-    gettimeofday(&tv_start, NULL);
-
-
+  for (i = 0; i < SERVER_WORKERS; i++) {
     if (!fork()) { // The child
-      close(sock_fd);  // doesn't need to listen
-      char           buf[MAX_BUF_SIZE];
-      char           result[(MAX_BUF_SIZE * 2) + 1];
-      unsigned char *nonce;
-      int            bytes_in = 0;
+      int   new_fd;
+      int   bytes_in = 0;
+      int   res_len  = 0;
+      char  result[RESULT_SIZE];
+      char *nonce;
 
-      if (send(new_fd, SERVER_HELLO, strlen(SERVER_HELLO), 0) == -1) {
-        printf("Failed to send handshake\n");
+      if (listen(sock_fd, SERVER_BACKLOG) == -1) {
+        printf("Unable to listen\n");
+        exit(1);
       }
 
-      if ((bytes_in = recv(new_fd, buf, MAX_BUF_SIZE - 1, 0)) == -1) {
-        printf("Failed to recv data\n");
-      } else {
-        buf[bytes_in] = '\0';
-        if (bytes_in > 1) buf[bytes_in - 2] = '\0';     // Strip the \r\n
+      // Start taking connections
+      while (1) {
+        if ((new_fd = accept(sock_fd, NULL, NULL)) == -1 ) {
+          printf("Unable to accept connection!\n");
+          continue;
+        }
 
-        nonce = find_nonce(buf);
+        if (send(new_fd, SERVER_HELLO, SERVER_HELLO_LEN, 0) == -1) {
+          printf("Failed to send handshake\n");
+        }
 
-        sprintf(result, "%s:%s\r\n", buf, nonce);
+        if ((bytes_in = recv(new_fd, result, CLIENT_REQ_SIZE, 0)) < 1) {
+          printf("Invalid data, goodbye!\n");
+          close(new_fd);
+          continue;
+        }
+        result[bytes_in] = ':';
 
-        if (send(new_fd, result, strlen(result), 0) == -1) {
+        nonce = (char *)result + bytes_in + 1;
+        res_len = calc_nonce(result, bytes_in, nonce, RESULT_SIZE - bytes_in - 1) + bytes_in + 1;
+        result[res_len] = '\0';
+
+        if (send(new_fd, result, res_len, 0) == -1) {
           printf("Failed to return completed string: %s\n", result);
         }
-      }
-      close(new_fd);
-      gettimeofday(&tv_end, NULL);
-      time_in_micros = ((1000000 * tv_end.tv_sec) + tv_end.tv_usec) - ((1000000 * tv_start.tv_sec) + tv_start.tv_usec);
 
-      result[strlen(result) - 2] = '\0';  // strip off the \r\n now that we are done
-      printf("%16s | %9d us | %s\n", inet_ntoa(remote_addr.sin_addr), time_in_micros, result);
-      exit(0);
+        close(new_fd);
+      }
     }
-    close(new_fd);
   }
 
+  wait(NULL);
   return 0;
-}
-
-
-
-void sigchild_handler(int s) {
-  while (wait(NULL) > 0);
 }
 
