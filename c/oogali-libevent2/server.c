@@ -26,17 +26,11 @@
 #define CLIENT_READ_TIMEOUT 5 /* seconds */
 
 void handle_nonce(struct bufferevent *bev, void *ptr) {
-  struct evbuffer *input = NULL, *output = NULL;
+  struct evbuffer *output = NULL;
   unsigned char digest_hash[32];
-  char digest_string[SHA256_DIGEST_LENGTH], *nonce = NULL;
+  char digest_string[SHA256_DIGEST_LENGTH + 1], nonce[1024];
   int i;
   size_t nonce_len;
-
-  input = bufferevent_get_input(bev);
-  if (input == NULL) {
-    fprintf(stderr, "bufferevent_get_input: could not get handle for input buffer\n");
-    return;
-  }
 
   output = bufferevent_get_output(bev);
   if (output == NULL) {
@@ -44,9 +38,10 @@ void handle_nonce(struct bufferevent *bev, void *ptr) {
     return;
   }
 
-  nonce = evbuffer_readln(input, &nonce_len, EVBUFFER_EOL_ANY);
-  if (nonce == NULL) {
-    fprintf(stderr, "evbuffer_readln: could not read incoming line\n");
+  bzero(&nonce, sizeof(nonce));
+  nonce_len = bufferevent_read(bev, nonce, sizeof(nonce));
+  if (nonce_len == -1) {
+    fprintf(stderr, "bufferevent_read: could not read incoming nonce\n");
     return;
   }
 
