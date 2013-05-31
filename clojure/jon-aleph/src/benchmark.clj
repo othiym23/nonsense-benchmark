@@ -16,8 +16,7 @@
 
 (defn handler [ch client-info]
   (enqueue ch "ok\n")
-  (receive-all ch
-    #(enqueue ch (message-received %))))
+  (receive-all ch #(enqueue ch (message-received %))))
 
 (defn -main [& args]
   (println "ready")
