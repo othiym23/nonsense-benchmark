@@ -1,7 +1,7 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-
+#include "nonce.h"
 
 #define SERVER_PORT      1337
 #define SERVER_WORKERS   64      // We know how many users will be attacking us
@@ -10,7 +10,6 @@
 #define SERVER_HELLO_LEN 3
 
 #define CLIENT_REQ_SIZE  256     // Size of random string from the client
-#define NONCE_SIZE       32
 #define RESULT_SIZE      CLIENT_REQ_SIZE + NONCE_SIZE + 1
 
 

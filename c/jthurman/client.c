@@ -19,10 +19,9 @@ int main(int argc, char *argv[]) {
   int                 bytes_in = 0;
   int                 sock_fd;
   int                 sin_size;
-  char                out[MAX_BUF_SIZE];
-  char                buf[(MAX_BUF_SIZE * 2) + 1];
-  char                res[(MAX_BUF_SIZE * 2) + 1];
-  unsigned char      *nonce;
+  char                buf[RESULT_SIZE];
+  char                res[RESULT_SIZE];
+  unsigned char       nonce[NONCE_SIZE];
   struct hostent     *server_host;
   struct sockaddr_in  server_addr;
 
@@ -32,11 +31,10 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  if (strlen(argv[2]) > (MAX_BUF_SIZE - 3)) {  // Need a \r\n\0
-    printf("string is too long. Max: %d\n", MAX_BUF_SIZE);
+  if (strlen(argv[2]) > CLIENT_REQ_SIZE) {
+    printf("string is too long. Max: %d\n", CLIENT_REQ_SIZE);
     exit(1);
   }
-  sprintf(out, "%s\r\n", argv[2]);
 
   if ((server_host = gethostbyname(argv[1])) == NULL) {
     printf("Unable to identify host: %s\n", argv[1]);
@@ -58,7 +56,7 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  if ((bytes_in = recv(sock_fd, buf, MAX_BUF_SIZE - 1, 0)) == -1) {
+  if ((bytes_in = recv(sock_fd, buf, RESULT_SIZE, 0)) == -1) {
     printf("No response from host.\n");
     exit(1);
   }
@@ -70,25 +68,23 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  if (send(sock_fd, out, strlen(out), 0) == -1) {
+  if (send(sock_fd, argv[2], strlen(argv[2]), 0) == -1) {
     printf("Failed to send string: %s\n", argv[2]);
     exit(1);
   }
 
   // Now get the result
-  if ((bytes_in = recv(sock_fd, buf, (MAX_BUF_SIZE * 2), 0)) == -1) {
+  if ((bytes_in = recv(sock_fd, buf, RESULT_SIZE, 0)) == -1) {
     printf("No result from host.\n");
     exit(1);
   }
+  buf[bytes_in] = '\0';
 
   close(sock_fd);
 
 
-  buf[bytes_in] = '\0';
-  if (bytes_in > 1) buf[bytes_in - 2] = '\0';  // strip off \r\n
-
   // Calculate it ourselves to make sure
-  nonce = find_nonce(argv[2]);
+  calc_nonce(argv[2], strlen(argv[2]), &nonce, NONCE_SIZE);
 
   sprintf(res, "%s:%s", argv[2], nonce);
 

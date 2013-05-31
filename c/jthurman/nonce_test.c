@@ -4,11 +4,9 @@
 #include <sys/time.h>
 #include "nonce.h"
 
-// #define DEBUG   1
-
 
 main(int argc, char *argv[]) {
-  unsigned char  *nonce;
+  unsigned char   nonce[NONCE_SIZE];
   struct timeval  tv_start, tv_end;
   unsigned long   time_in_micros;
 
@@ -18,7 +16,7 @@ main(int argc, char *argv[]) {
   }
 
   gettimeofday(&tv_start, NULL);
-  nonce = find_nonce(argv[1]);
+  calc_nonce(argv[1], strlen(argv[1]), &nonce, NONCE_SIZE);
   gettimeofday(&tv_end, NULL);
 
   // calculate the time
