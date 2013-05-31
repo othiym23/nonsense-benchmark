@@ -1,3 +1,0 @@
-[submodule "ocaml/dep/sha"]
-	path = ocaml/dep/sha
-	url = https://github.com/othiym23/ocaml-sha.git

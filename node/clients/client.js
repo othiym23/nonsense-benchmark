@@ -38,19 +38,28 @@ function uToSeconds(usduration) {
 function dumpStats(stats, duration) {
   if (badRequests > 0) console.log("WARNING: %s bad requests", badRequests);
 
-  console.log("\nHandled %s requests:        %sµs mean, %sµs median (stddev %s)",
-              stats.length, stats.amean().toFixed(0), stats.median().toFixed(0),
-              stats.stddev().toFixed(0));
+  console.log("\nTimes in ms, min/mean/median/max (stddev)");
+  console.log("Handled %s requests:         %s/%s/%s/%s (%s)",
+              stats.length,
+              (stats.range()[0] / 1e3).toFixed(1),
+              (stats.amean() / 1e3).toFixed(1),
+              (stats.median() / 1e3).toFixed(1),
+              (stats.range()[1] / 1e3).toFixed(1),
+              (stats.stddev() / 1e3).toFixed(1));
 
   var iqr = stats.iqr();
-  console.log("IQR filtered to %s requests: %sµs mean, %sµs median (stddev %s)",
-              iqr.length, iqr.amean().toFixed(0), iqr.median().toFixed(0),
-              iqr.stddev().toFixed(0));
+  console.log("IQR filtered to %s requests: %s/%s/%s/%s (%s)",
+              iqr.length,
+              (iqr.range()[0] / 1e3).toFixed(1),
+              (iqr.amean() / 1e3).toFixed(1),
+              (iqr.median() / 1e3).toFixed(1),
+              (iqr.range()[1] / 1e3).toFixed(1),
+              (iqr.stddev() / 1e3).toFixed(1));
 
   if (duration) {
-    console.log("Throughput: %srpm (IQR adjusted: %srpm).",
-                (stats.length / hrToSeconds(duration) * 60).toFixed(2),
-                (iqr.length   / uToSeconds(iqr.sum)   * 60 * CONCURRENCY).toFixed(2));
+    console.log("Throughput: %skrpm (IQR adjusted: %skrpm).",
+                (stats.length / hrToSeconds(duration) * 60 / 1e3).toFixed(2),
+                (iqr.length / uToSeconds(iqr.sum) * 60 * CONCURRENCY / 1e3).toFixed(2));
   }
 }
 
