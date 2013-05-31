@@ -1,0 +1,12 @@
+1)
+$ lein uberjar
+$ java -jar target/benchmark-1.0.0-standalone.jar
+
+2)
+wait for "ready"
+
+3)
+let it warm up a few time, lots of errors until it get's itself sorted out, no idea why
+
+4)
+do it to it
