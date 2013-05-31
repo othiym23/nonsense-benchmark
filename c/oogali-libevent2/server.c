@@ -61,7 +61,7 @@ void handle_nonce(struct bufferevent *bev, void *ptr) {
 }
 
 void conn_event_handler(struct bufferevent *bev, short events, void *ptr) {
-  if (events & BEV_EVENT_READING) {
+  if (events & BEV_EVENT_READING && !(events & BEV_EVENT_EOF)) {
     perror("received error while reading buffered event");
   }
 
