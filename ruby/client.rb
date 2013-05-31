@@ -4,11 +4,11 @@ require 'openssl'
 def verify(input, nonce)
   if input
     hashed = OpenSSL::Digest::SHA256.new << input + nonce
-    hashed if hashed.to_s[62..64] == '00'
+    hashed if hashed.to_s[60..64] == '0000'
   end
 end
 
-str = 'e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e'
+str = 'hello'
 
 id = 0
 while true

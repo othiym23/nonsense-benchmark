@@ -1,15 +1,15 @@
 -module(client).
 
 -import(hex).
--import(erlsha2).
 
--export([verify/2, find_nonce/1]).
+-export([verify/2, find_nonce/2]).
 
 verify(Input, Nonce) ->
-  Hash = erlsha2:sha256_update(erlsha2:sha256_init(), Input ++ Nonce),
-  Digest = hex:bin_to_hexstr(erlsha2:sha256_final(Hash)).
+  hex:bin_to_hexstr(crypto:hash(sha256, [Input | string:to_lower(integer_to_list(Nonce, 16))])).
 
-find_nonce(Input) ->
-  Nonce = 0,
-  verify(Input, Nonce).
-  string:sub_string(Digest, 63, 64).
+find_nonce(Input, Nonce) ->
+  Digest = verify(Input, Nonce),
+  case string:right(Digest, 4) == "0000" of
+    true -> string:to_lower(integer_to_list(Nonce, 16));
+    false -> find_nonce(Input, Nonce + 1)
+  end.
