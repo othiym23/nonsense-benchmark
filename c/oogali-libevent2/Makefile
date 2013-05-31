@@ -1,5 +1,6 @@
-CFLAGS+=-Wall -O3 -I/usr/local/include
-LDFLAGS+=-L/usr/local/lib
+PREFIX=/usr/local
+CFLAGS+=-Wall -O3 -I$(PREFIX)/include
+LDFLAGS+=-L$(PREFIX)/lib
 LIBS+=-levent -levent_pthreads -lssl -lcrypto
 LD=$(CC)
 
