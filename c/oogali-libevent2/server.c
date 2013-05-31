@@ -23,7 +23,6 @@
 #define BINDADDR "0.0.0.0"
 #define PORT 1337
 #define OK "ok\n"
-#define CLIENT_READ_TIMEOUT 5 /* seconds */
 
 void handle_nonce(struct bufferevent *bev, void *ptr) {
   struct evbuffer *output = NULL;
@@ -78,7 +77,6 @@ void incoming_conn(struct evconnlistener *evc, evutil_socket_t sock, struct sock
   struct event_base *eb = NULL;
   struct bufferevent *bev = NULL;
   struct evbuffer *output = NULL;
-  struct timeval read_timeout;
 
   eb = evconnlistener_get_base(evc);
   if (eb == NULL) {
@@ -101,15 +99,6 @@ void incoming_conn(struct evconnlistener *evc, evutil_socket_t sock, struct sock
   evbuffer_add(output, OK, strlen(OK));
 
   bufferevent_setcb(bev, handle_nonce, NULL, conn_event_handler, NULL);
-
-  bzero(&read_timeout, sizeof(struct timeval));
-  read_timeout.tv_sec = CLIENT_READ_TIMEOUT;
-
-  if (bufferevent_set_timeouts(bev, &read_timeout, NULL) < 0) {
-    fprintf(stderr, "bufferevent_set_timeouts: could not set read timeout\n");
-    return;
-  }
-
   if (bufferevent_enable(bev, EV_READ) < 0) {
     fprintf(stderr, "bufferevent_enable: could not enable reading of buffered events\n");
     return;
