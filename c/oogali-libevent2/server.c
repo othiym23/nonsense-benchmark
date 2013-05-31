@@ -26,10 +26,10 @@
 
 void handle_nonce(struct bufferevent *bev, void *ptr) {
   struct evbuffer *output = NULL;
-  unsigned char digest_hash[32];
-  char digest_string[SHA256_DIGEST_LENGTH + 1], nonce[1024];
-  int i;
-  size_t nonce_len;
+  unsigned char digest_hash[SHA256_DIGEST_LENGTH];
+  char string[(SHA256_DIGEST_LENGTH * 2) + 16 + 1];
+  int nonce = 0, nonce_len;
+  size_t string_len;
 
   output = bufferevent_get_output(bev);
   if (output == NULL) {
@@ -37,22 +37,27 @@ void handle_nonce(struct bufferevent *bev, void *ptr) {
     return;
   }
 
-  bzero(&nonce, sizeof(nonce));
-  nonce_len = bufferevent_read(bev, nonce, sizeof(nonce));
-  if (nonce_len == -1) {
-    fprintf(stderr, "bufferevent_read: could not read incoming nonce\n");
+  bzero(&string, sizeof(string));
+  string_len = bufferevent_read(bev, string, sizeof(string));
+  if (string_len == -1) {
+    fprintf(stderr, "bufferevent_read: could not read incoming string\n");
     return;
   }
 
-  bzero(&digest_hash, sizeof(digest_hash));
-  SHA256((unsigned char *)nonce, nonce_len, digest_hash);
+  digest_hash[31] = 0xff;
+  while(digest_hash[31] != 0) {
+    nonce_len = snprintf(string + string_len, sizeof(string) - string_len, "%d", nonce);
 
-  bzero(&digest_string, sizeof(digest_string));
-  for (i = 0; i < sizeof(digest_hash); i++) {
-    snprintf((digest_string + (i * 2)), 3, "%02x", digest_hash[i]);
+    SHA256((unsigned char *)string, string_len + nonce_len, digest_hash);
+    if (digest_hash[SHA256_DIGEST_LENGTH - 1] == 0) {
+      break;
+    }
+
+    nonce++;
   }
 
-  evbuffer_add_printf(output, "%s:%s\n", nonce, digest_string);
+  string[string_len] = '\0';
+  evbuffer_add_printf(output, "%s:%d", string, nonce);
 }
 
 void conn_event_handler(struct bufferevent *bev, short events, void *ptr) {
