@@ -5,7 +5,6 @@ import (
   "runtime"
 	"crypto/sha256"
 	"fmt"
-	"io"
 	"log"
 	"net"
   "strconv"
@@ -15,7 +14,7 @@ import (
 func verify(message string, nonce string) bool {
 	hasher := sha256.New()
 	
-	io.WriteString(hasher, message+nonce)
+	hasher.Write([]byte(message+nonce))
 	return hasher.Sum(nil)[31] == 0
 }
 
