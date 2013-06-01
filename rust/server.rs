@@ -18,22 +18,22 @@ fn main() {
         let socket_write = @socket_buf as @io::WriterUtil;
         socket_write.write_line("dood");
       },
-      Err(error) => {
+      Err(_) => {
         info!("Failed to accept connection");
       }
     }
   }
 
-
   match std::net::tcp::listen(ip, 1337, 1, &task,
-    |kill_chan| {
+    |_| {
       info!("Server listening");
     },
     |conn, kill_chan| {
+      // To the accept task!
       chan.send((conn, kill_chan));
     }
   ) {
-    Err(error) => info!("wut"),
-    Ok(stuff) => info!("done")
+    Err(_) => info!("wut"),
+    Ok(_) => info!("done")
   }
 }
