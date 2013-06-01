@@ -8,20 +8,10 @@ import Crypto.Hash.SHA256 (hash)
 import Crypto.Random (newGenIO, genBytes, SystemRandom(..))
 import Data.ByteString.Char8 (pack, unpack, last, ByteString(..))
 import Data.Char (ord)
-import Network (withSocketsDo, PortID(..))
-import Network.Socket
+import Network (withSocketsDo, connectTo, PortID(..))
 import System.IO
 import Text.Printf (printf)
 import Text.Regex (mkRegex, splitRegex)
-
-newHandle :: IO Handle
-newHandle = do
-    sock <- socket AF_INET Stream defaultProtocol
-    hostAndPort <- serviceAddress
-    connect sock hostAndPort
-    socketToHandle sock ReadWriteMode
-    where addresses = getAddrInfo Nothing (Just "localhost") (Just "1337")
-          serviceAddress = do { addresses >>= (return . addrAddress . head) }
 
 hashed :: [String] -> ByteString
 hashed = hash . pack . concat
@@ -44,7 +34,8 @@ requestProof hash = withSocketsDo $ do
 
     handshake <- hGetLine handle
     okay handle handshake
-    where okay h "ok"      = sendHash h hash
+    where newHandle        = connectTo "127.0.0.1" (PortNumber 1337)
+          okay h "ok"      = sendHash h hash
           okay h handshake = do
               putStrLn $ "Got " ++ handshake ++ " instead of 'ok'."
               requestProof randomHash
@@ -79,10 +70,9 @@ verifyProof parts = do
     else do
         putStrLn $ (concat parts) ++ " did not validate (got" ++ (hashToStr next) ++ " instead)"
         requestProof $ return next
-    where next = hashed parts
-          valid candidate =
-              lastChar candidate == 0
-              where lastChar = ord . last
+    where next            = hashed parts
+          lastChar        = ord . last
+          valid candidate = lastChar candidate == 0
 
 spawn :: IO ()
 spawn = do
@@ -94,7 +84,7 @@ spawn = do
 main = go 0
     where
         go :: Int -> IO ()
-        go i | i < 16 = do
+        go i | i < 64 = do
                    mainTID <- myThreadId
                    myID <- forkIO $ spawn `catch` \e -> (throwTo mainTID (e :: IOException))
                    -- putStrLn $ show myID
