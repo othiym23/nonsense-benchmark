@@ -1,0 +1,8 @@
+This is a pthreads-based implementation with a pool of worker threads fed by a
+rather silly thread-safe queue thingy. On Apple platforms it will use
+the CommonCrypto framework for SHA2 hashing, and on non-Apple platforms it
+should use the included sha2.c implementation by Oliver Gay:
+https://github.com/ouah/sha2
+
+I haven't actually tried building it on Linux, so it might be broken there, but
+should be relatively straightforward to port.
