@@ -1,7 +1,5 @@
 extern mod std;
 
-use sha256;
-
 fn main() {
   type ConnectMsg = (std::net::tcp::TcpNewConnection, comm::SharedChan<Option<std::net::tcp::TcpErrData>>);
   
