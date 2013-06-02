@@ -35,7 +35,5 @@
 #define RESULT_SIZE      CLIENT_REQ_SIZE + NONCE_SIZE + 1
 #define NONCE_SIZE       32
 
-#define HEX_CRIB         "0123456789abcdef"
-
 
 #endif

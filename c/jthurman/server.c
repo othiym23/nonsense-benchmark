@@ -40,18 +40,16 @@ int main(int argc, char *argv[]) {
   // Prefork some workers
   for (i = 0; i < SERVER_WORKERS; i++) {
     if (!fork()) { // The child
-      int           new_fd;
-      int           bytes_in = 0;
-      char          result[RESULT_SIZE + NONCE_SIZE + 1];
-      char         *nonce_buf;
-      char         *ptr, tmp_char;
-      unsigned int  tmp_value, value;
- 
+      int            new_fd;
+      int            bytes_in = 0;
+      char           result[RESULT_SIZE];
+      char          *nonce_buf;
+      unsigned char  md_value[NS_SHA_LENGTH];
+      unsigned int   nonce_num = 1;
+      unsigned int   nonce_len = 0;
+      unsigned int   value;
       NS_SHA_CTX     base_sha;
       NS_SHA_CTX     test_sha;
-      unsigned char  md_value[32];
-      unsigned int   nonce_num = 1;
-      int            nonce_len = 0;
 
       if (listen(sock_fd, SERVER_BACKLOG) == -1) {
         printf("Unable to listen\n");
@@ -86,7 +84,7 @@ int main(int argc, char *argv[]) {
           value     = nonce_num;
           nonce_len = 0;
           do {
-            nonce_buf[nonce_len] = HEX_CRIB[(value & 0xf)];
+            nonce_buf[nonce_len] = 97 + (value & 0xf);
             value = value >> 4;
             nonce_len++;
           } while ( value );
