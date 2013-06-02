@@ -2,7 +2,7 @@
 #define SERVER_H
 
 #define SERVER_PORT      1337
-#define SERVER_WORKERS   64      // We know how many users will be attacking us
+#define SERVER_WORKERS   70      // We know how many users will be attacking us
 #define SERVER_BACKLOG   1024    // Probably don't need this since we know the attack size above
 #define SERVER_HELLO     "ok\n"  // Should be \r\n
 #define SERVER_HELLO_LEN 3
