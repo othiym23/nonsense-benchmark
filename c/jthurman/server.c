@@ -2,14 +2,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <signal.h>
-#include <openssl/sha.h>
 
 #include "server.h"
 
@@ -40,6 +37,7 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
+  // Prefork some workers
   for (i = 0; i < SERVER_WORKERS; i++) {
     if (!fork()) { // The child
       int           new_fd;
@@ -49,8 +47,8 @@ int main(int argc, char *argv[]) {
       char         *ptr, tmp_char;
       unsigned int  tmp_value, value;
  
-      SHA256_CTX     base_sha;
-      SHA256_CTX     test_sha;
+      NS_SHA_CTX     base_sha;
+      NS_SHA_CTX     test_sha;
       unsigned char  md_value[32];
       unsigned int   nonce_num = 1;
       int            nonce_len = 0;
@@ -78,31 +76,29 @@ int main(int argc, char *argv[]) {
         }
         result[bytes_in] = ':';
 
-        SHA256_Init(&base_sha);
-        SHA256_Update(&base_sha, result, bytes_in);
+        NS_SHA_INIT(&base_sha);
+        NS_SHA_UPDATE(&base_sha, result, bytes_in);
 
         nonce_buf = (char *)result + bytes_in + 1;
 
         do {
           // Convert nonce_num to a hex string
-          ptr   = nonce_buf;
-          value = nonce_num;
+          value     = nonce_num;
           nonce_len = 0;
           do {
-            tmp_value = value;
-            value /= 16;
-            *ptr++ = HEX_CRIB[15 + (tmp_value - value * 16)];
+            nonce_buf[nonce_len] = HEX_CRIB[(value & 0xf)];
+            value = value >> 4;
             nonce_len++;
           } while ( value );
 
 
           // Copy the base_sha to test_sha so we don't rehash the base string
-          memcpy(&test_sha, &base_sha, sizeof(SHA256_CTX));
+          memcpy(&test_sha, &base_sha, sizeof(NS_SHA_CTX));
 
           // Update the sha, and grab the result
-          SHA256_Update(&test_sha, nonce_buf, nonce_len);
-          SHA256_Final(md_value, &test_sha);
-        } while ((md_value[31] != 0) && (nonce_num++));
+          NS_SHA_UPDATE(&test_sha, nonce_buf, nonce_len);
+          NS_SHA_FINAL(&test_sha, md_value);
+        } while ((md_value[NS_SHA_LENGTH - 1] != 0) && (nonce_num++));
 
         if (send(new_fd, result, nonce_len + bytes_in + 1, 0) == -1) {
           printf("Failed to return completed string: %s\n", result);
