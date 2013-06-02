@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
 #include <string.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -10,9 +9,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <openssl/evp.h>
 
 #include "server.h"
-#include "nonce.h"
 
 
 int main(int argc, char *argv[]) {
@@ -20,6 +19,7 @@ int main(int argc, char *argv[]) {
   int                 i;
   int                 yes = 1;
   struct sockaddr_in  local_addr;
+  const EVP_MD       *md;
 
   if ((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
     printf("Unable to create socket\n");
@@ -41,13 +41,27 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
+  md = EVP_sha256();       // Using sha256 for these
+
   for (i = 0; i < SERVER_WORKERS; i++) {
     if (!fork()) { // The child
       int   new_fd;
       int   bytes_in = 0;
       int   res_len  = 0;
-      char  result[RESULT_SIZE];
-      char *nonce;
+      char  result[RESULT_SIZE + NONCE_SIZE + 1];
+      char *nonce_buf;
+      char *ptr, tmp_char;
+      unsigned int tmp_value, value;
+ 
+      EVP_MD_CTX    *base_sha = NULL;
+      EVP_MD_CTX    *test_sha = NULL;
+      unsigned char  md_value[EVP_MAX_MD_SIZE];
+      unsigned int   nonce_num = 1;
+      int            nonce_len = 0;
+      int            md_len = 0;
+
+      base_sha = EVP_MD_CTX_create();
+      test_sha = EVP_MD_CTX_create();
 
       if (listen(sock_fd, SERVER_BACKLOG) == -1) {
         printf("Unable to listen\n");
@@ -72,15 +86,38 @@ int main(int argc, char *argv[]) {
         }
         result[bytes_in] = ':';
 
-        nonce = (char *)result + bytes_in + 1;
-        res_len = calc_nonce(result, bytes_in, nonce, RESULT_SIZE - bytes_in - 1) + bytes_in + 1;
-        result[res_len] = '\0';
+        nonce_buf = (char *)result + bytes_in + 1;
 
-        if (send(new_fd, result, res_len, 0) == -1) {
+        EVP_DigestInit_ex(base_sha, md, NULL);
+        EVP_DigestUpdate(base_sha, result, bytes_in);
+
+        do {
+          ptr   = nonce_buf;
+          value = nonce_num;
+          nonce_len = 0;
+          do {
+            tmp_value = value;
+            value /= 16;
+            *ptr++ = HEX_CRIB[15 + (tmp_value - value * 16)];
+            nonce_len++;
+          } while ( value );
+
+
+          EVP_MD_CTX_copy_ex(test_sha, base_sha);
+          EVP_DigestUpdate(test_sha, nonce_buf, nonce_len);
+
+          EVP_DigestFinal_ex(test_sha, md_value, &md_len);
+          EVP_MD_CTX_cleanup(test_sha);
+        } while ((md_value[31] != 0) && (nonce_num++));
+
+        if (send(new_fd, result, nonce_len + bytes_in + 1, 0) == -1) {
           printf("Failed to return completed string: %s\n", result);
         }
 
+        // Cleanup
         close(new_fd);
+        EVP_MD_CTX_cleanup(base_sha);
+        nonce_num = 1;
       }
     }
   }
