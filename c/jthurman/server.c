@@ -9,7 +9,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <signal.h>
-#include <openssl/evp.h>
+#include <openssl/sha.h>
 
 #include "server.h"
 
@@ -19,7 +19,6 @@ int main(int argc, char *argv[]) {
   int                 i;
   int                 yes = 1;
   struct sockaddr_in  local_addr;
-  const EVP_MD       *md;
 
   if ((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
     printf("Unable to create socket\n");
@@ -41,27 +40,20 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  md = EVP_sha256();       // Using sha256 for these
-
   for (i = 0; i < SERVER_WORKERS; i++) {
     if (!fork()) { // The child
-      int   new_fd;
-      int   bytes_in = 0;
-      int   res_len  = 0;
-      char  result[RESULT_SIZE + NONCE_SIZE + 1];
-      char *nonce_buf;
-      char *ptr, tmp_char;
-      unsigned int tmp_value, value;
+      int           new_fd;
+      int           bytes_in = 0;
+      char          result[RESULT_SIZE + NONCE_SIZE + 1];
+      char         *nonce_buf;
+      char         *ptr, tmp_char;
+      unsigned int  tmp_value, value;
  
-      EVP_MD_CTX    *base_sha = NULL;
-      EVP_MD_CTX    *test_sha = NULL;
-      unsigned char  md_value[EVP_MAX_MD_SIZE];
+      SHA256_CTX     base_sha;
+      SHA256_CTX     test_sha;
+      unsigned char  md_value[32];
       unsigned int   nonce_num = 1;
       int            nonce_len = 0;
-      int            md_len = 0;
-
-      base_sha = EVP_MD_CTX_create();
-      test_sha = EVP_MD_CTX_create();
 
       if (listen(sock_fd, SERVER_BACKLOG) == -1) {
         printf("Unable to listen\n");
@@ -86,12 +78,13 @@ int main(int argc, char *argv[]) {
         }
         result[bytes_in] = ':';
 
+        SHA256_Init(&base_sha);
+        SHA256_Update(&base_sha, result, bytes_in);
+
         nonce_buf = (char *)result + bytes_in + 1;
 
-        EVP_DigestInit_ex(base_sha, md, NULL);
-        EVP_DigestUpdate(base_sha, result, bytes_in);
-
         do {
+          // Convert nonce_num to a hex string
           ptr   = nonce_buf;
           value = nonce_num;
           nonce_len = 0;
@@ -103,11 +96,12 @@ int main(int argc, char *argv[]) {
           } while ( value );
 
 
-          EVP_MD_CTX_copy_ex(test_sha, base_sha);
-          EVP_DigestUpdate(test_sha, nonce_buf, nonce_len);
+          // Copy the base_sha to test_sha so we don't rehash the base string
+          memcpy(&test_sha, &base_sha, sizeof(SHA256_CTX));
 
-          EVP_DigestFinal_ex(test_sha, md_value, &md_len);
-          EVP_MD_CTX_cleanup(test_sha);
+          // Update the sha, and grab the result
+          SHA256_Update(&test_sha, nonce_buf, nonce_len);
+          SHA256_Final(md_value, &test_sha);
         } while ((md_value[31] != 0) && (nonce_num++));
 
         if (send(new_fd, result, nonce_len + bytes_in + 1, 0) == -1) {
@@ -116,7 +110,6 @@ int main(int argc, char *argv[]) {
 
         // Cleanup
         close(new_fd);
-        EVP_MD_CTX_cleanup(base_sha);
         nonce_num = 1;
       }
     }
