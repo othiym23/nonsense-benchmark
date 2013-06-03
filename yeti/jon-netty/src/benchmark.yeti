@@ -1,0 +1,58 @@
+module benchmark;
+
+import java.net.InetSocketAddress;
+import java.security.MessageDigest;
+import java.util.concurrent.Executors;
+
+import org.jboss.netty.bootstrap.ServerBootstrap;
+import org.jboss.netty.channel.ChannelPipeline;
+import org.jboss.netty.channel.ChannelPipelineFactory;
+import org.jboss.netty.channel.Channels;
+import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.ChannelStateEvent;
+import org.jboss.netty.channel.MessageEvent;
+import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
+import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
+import org.jboss.netty.handler.codec.string.StringDecoder;
+import org.jboss.netty.handler.codec.string.StringEncoder;
+import org.jboss.netty.util.CharsetUtil;
+
+verify challenge nonce =
+    (md = MessageDigest#getInstance("SHA-256");
+     md#update(((challenge ^ nonce) as ~java.lang.String)#getBytes());
+     pop (array md#digest()) == 0);
+
+respond input idx =
+    (candidate = Integer#toHexString(idx);
+     if verify input candidate then
+         input ^ ":" ^ candidate
+     else:
+         respond input (idx + 1));
+
+class NonceServerHandler extends SimpleChannelUpstreamHandler
+    void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e)
+        e#getChannel()#write("ok\n"); 
+        (),
+
+    void messageReceived(ChannelHandlerContext ctx, MessageEvent e)
+        e#getChannel()#write(respond (e#getMessage() unsafely_as ~java.lang.String) 0); 
+        ()
+end;
+
+class PipelineFactory extends ChannelPipelineFactory
+    ChannelPipeline getPipeline()        
+        Channels#pipeline(array [new StringEncoder(CharsetUtil#US_ASCII),
+                                 new StringDecoder(CharsetUtil#US_ASCII),
+                                 new NonceServerHandler()]);
+end;
+
+class NonceServer
+    static void main(String[] args)
+        bootstrap = new ServerBootstrap(
+            new NioServerSocketChannelFactory(
+                Executors#newCachedThreadPool(),
+                Executors#newCachedThreadPool()));
+        bootstrap#setPipelineFactory(new PipelineFactory());
+        bootstrap#bind(new InetSocketAddress(1337));
+        ()
+end;
