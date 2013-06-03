@@ -1,0 +1,5 @@
+To build & run:
+
+cabal install cabal-dev
+cabal-dev install
+cabal-dev/bin/concurrent-server
