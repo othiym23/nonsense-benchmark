@@ -1,22 +1,35 @@
 extern mod std;
 
+fn sha256(msg: &str) -> ~str {
+  ~""
+}
+
 fn main() {
   type ConnectMsg = (std::net::tcp::TcpNewConnection, comm::SharedChan<Option<std::net::tcp::TcpErrData>>);
   
   let (port, chan): (Port<ConnectMsg>, Chan<ConnectMsg>) = stream();
 
   do task::spawn {
-    let (conn, kill_chan) = port.recv();
-    info!("Fixin to accept");
-    match std::net::tcp::accept(conn) {
-      Ok(socket) => {
-        info!("Accepted connection");
-        let socket_buf = std::net::tcp::socket_buf(socket);
-        let socket_write = @socket_buf as @io::WriterUtil;
-        socket_write.write_line("ok");
-      },
-      Err(_) => {
-        info!("Failed to accept connection");
+    loop {
+      let (conn, kill_chan) = port.recv();
+      info!("Fixin to accept");
+      match std::net::tcp::accept(conn) {
+        Ok(socket) => {
+          info!("Accepted connection");
+
+          socket.write(str::to_bytes("ok\n"));
+
+          let res = socket.read(0);
+          let input_str = str::from_bytes(res.get());
+          info!(fmt!("Read %s", input_str));
+
+          let nonce = ~"5a";
+
+          socket.write(str::to_bytes(input_str + ":" + nonce));
+        },
+        Err(_) => {
+          info!("Failed to accept connection");
+        }
       }
     }
   }
@@ -33,7 +46,7 @@ fn main() {
       chan.send((conn, kill_chan));
     }
   ) {
-    Err(_) => info!("wut"),
-    Ok(_) => info!("done")
+    Err(_) => info!("Error listening"),
+    Ok(_) => info!("Done listening")
   }
 }
