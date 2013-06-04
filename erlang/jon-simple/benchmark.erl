@@ -3,17 +3,18 @@
 
 start() ->
     crypto:start(),
-    {ok, Listen} = gen_tcp:listen(1337, [binary, 
-                                         {reuseaddr, true},
-                                         {backlog, 100},
-                                         {active, false}]),
-    spawn(fun() -> connect(Listen) end).
+    spawn(fun() -> {ok, Listen} = gen_tcp:listen(1337, [binary,
+                                                        {reuseaddr, true},
+                                                        {backlog, 100},
+                                                        {active, false}]),
+                   connect(Listen) end).
 
 connect(Listen) ->
     {ok, Socket} = gen_tcp:accept(Listen),
-    spawn(fun() -> connect(Listen) end),
-    gen_tcp:send(Socket, "ok\n"), 
-    handle(Socket).
+    Pid = spawn(fun() -> handle(Socket) end),
+    gen_tcp:controlling_process(Socket, Pid),
+    gen_tcp:send(Socket, "ok\n"),
+    connect(Listen).
 
 handle(Socket) ->
     inet:setopts(Socket, [{active, once}]),
