@@ -22,6 +22,7 @@ handle(Socket) ->
             Str = binary_to_list(Data),
             Reply = lists:concat([Str, ":", find_solution(Str)]),
             gen_tcp:send(Socket, Reply),
+            gen_tcp:close(Socket),
             handle(Socket);
         {tcp_error, Socket, Reason} ->
             io:format("error: ~p~n", [Reason]);
