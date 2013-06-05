@@ -16,6 +16,9 @@
 #define OK_STR_SIZE 3
 #define HEX_CRIB "fedcba9876543210123456789abcdef"
 
+// We don't need interruptions and they're less efficient.
+#define BOOST_THREAD_DONT_PROVIDE_INTERRUPTIONS
+
 using boost::asio::ip::tcp;
 using namespace std;
 
@@ -200,13 +203,12 @@ private:
 };
 
 int main(int argc, char* argv[]) {
-  if (argc != 2) {
-    cout << "Usage: ./server <number of threads>\n";
-    return 1;
-  }
+  unsigned cores = boost::thread::hardware_concurrency() / 2;
+
+  printf("detected %i cores\n", cores);
 
   try {
-    server s("0", "1337", atoi(argv[1]));
+    server s("0", "1337", cores);
 
     s.run();
   } catch (std::exception& e) {
