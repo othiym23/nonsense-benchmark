@@ -7,7 +7,10 @@ function requestProof(hash, callback) {
 
   var client = connect(1337, 'localhost');
   client.setEncoding('ascii');
-  client.on('error', callback);
+  client.on('error', function ohno(error) {
+    client.end();
+    callback(error);
+  });
 
   function getProof() {
     var payload = client.read();

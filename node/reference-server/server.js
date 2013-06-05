@@ -6,7 +6,7 @@
  * Results are <input>:<nonce>
  *
  * Passing e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e should get back
- *   e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e:2c8
+ *   e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e:5a
  */
 var createServer = require('net').createServer
   , verify       = require('../verify.js')
@@ -39,21 +39,20 @@ var prover = createServer(function (conn) {
     , remotePort    = conn.remotePort
     ;
 
-  conn.on('error', function (error) {
-    console.log("error: %s from %s:%s",
-                error.message,
-                remoteAddress, remotePort);
-  });
+  conn.on('readable', function ready() {
+    var hash;
+    if (!(hash = conn.read())) return;
 
-  conn.write('ok\n', function acked() {
-    conn.once('readable', function ready() {
-      var hash = conn.read();
-
-      conn.write(hash + ':' + work(hash), function done() {
-        conn.end();
-      });
+    conn.write(hash + ':' + work(hash), function done() {
+      conn.end();
     });
   });
+
+  conn.on('error', function (error) {
+    console.log("error: %s from %s:%s", error.message, remoteAddress, remotePort);
+  });
+
+  conn.write('ok\n');
 });
 
 prover.listen(1337, function () {
