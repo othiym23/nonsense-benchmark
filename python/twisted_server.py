@@ -14,7 +14,7 @@ def compute_nonce(input):
     while True:
         nonce = '%02x' % i
         if verify(input, nonce):
-            return nonce
+            return input + ':' + nonce
         i += 1
 
 class Nonsense(Protocol):
