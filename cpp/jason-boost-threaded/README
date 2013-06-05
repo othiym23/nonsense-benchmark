@@ -1,0 +1,5 @@
+This should work on OSX and linux.  Edit the Make file to point to your boost installation and run 'make'.
+
+Usage: ./server <thread count>
+
+Thread count seems to work best when you set it to the number of *real* cores on your machine.
