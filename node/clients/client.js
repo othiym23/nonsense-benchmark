@@ -1,6 +1,8 @@
+#!/usr/local/bin/node
 'use strict';
 
-var util         = require('util')
+var domain       = require('domain')
+  , util         = require('util')
   , randomBytes  = require('crypto').randomBytes
   , Statistics   = require('fast-stats').Stats
   , requestProof = require('../request-proof.js')
@@ -18,7 +20,7 @@ var util         = require('util')
  * sudo sysctl -w net.inet.ip.portrange.hifirst=32768
  */
 var CONCURRENCY = 64
-  , WARMUP      = 2000
+  , WARMUP      = 4000
   , TOTAL       = 10 * WARMUP
   ;
 
@@ -82,7 +84,12 @@ function generateRun(count, update, finish) {
   var i     = 0
     , start = process.hrtime()
     , limit = Math.min(CONCURRENCY, TOTAL)
+    , d     = domain.create()
     ;
+
+  d.on('error', function (error) {
+    update(error);
+  });
 
   function seeded(error, seed) {
     if (error) {
@@ -125,7 +132,7 @@ function generateRun(count, update, finish) {
     requestProof(current, checker);
   }
 
-  for (var worker = 0; worker < limit; worker++) genSeed(seeded);
+  for (var worker = 0; worker < limit; worker++) genSeed(d.bind(seeded));
 }
 
 function dryRun(error, micros) {
