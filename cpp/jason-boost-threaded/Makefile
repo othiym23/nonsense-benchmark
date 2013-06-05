@@ -1,4 +1,4 @@
-CFLAGS=-O3
+CFLAGS=-O2 -fomit-frame-pointer
 LDFLAGS=-L/usr/local/Cellar/boost/1.53.0/lib -lboost_system-mt -lboost_thread-mt -lssl -lcrypto
 CC=g++
 

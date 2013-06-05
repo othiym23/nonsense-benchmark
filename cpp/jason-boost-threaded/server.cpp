@@ -6,15 +6,28 @@
 #include <boost/shared_ptr.hpp>
 
 #ifdef __APPLE__
-#include <CommonCrypto/CommonDigest.h>
-#else
-#include <openssl/sha.h>
+  #include <CommonCrypto/CommonDigest.h>
+  #define NS_SHA_CTX    CC_SHA256_CTX
+  #define NS_SHA_INIT   CC_SHA256_Init
+  #define NS_SHA_UPDATE CC_SHA256_Update
+  #define NS_SHA_FINAL(CTX, BUF)  CC_SHA256_Final((BUF), (CTX))
+  #define NS_SHA_LENGTH CC_SHA256_DIGEST_LENGTH
+#else /* !__APPLE__ */
+  #include <openssl/sha.h>
+  #define NS_SHA_CTX              SHA256_CTX
+  #define NS_SHA_INIT             SHA256_Init
+  #define NS_SHA_UPDATE           SHA256_Update
+  #define NS_SHA_FINAL(CTX, BUF)  SHA256_Final((CTX), (CTX))
+  #define NS_SHA_LENGTH           32
 #endif
 
 #define HASH_STR_SIZE 64
 #define OK_STR "ok\n"
 #define OK_STR_SIZE 3
 #define HEX_CRIB "fedcba9876543210123456789abcdef"
+
+// We don't need interruptions and they're less efficient.
+#define BOOST_THREAD_DONT_PROVIDE_INTERRUPTIONS
 
 using boost::asio::ip::tcp;
 using namespace std;
@@ -56,33 +69,22 @@ private:
 	}
 
   void handle_read(const boost::system::error_code& error, size_t bytes_transferred) {
-    unsigned char result[HASH_STR_SIZE/2];
-    unsigned int nonce = 0, nonce_str_len = 0;
-    char *nonce_str;
-
-#ifdef __APPLE__
-    CC_SHA256_CTX context;
-#else
-    SHA256_CTX context;
-#endif
+    nonce = 0;
+    nonce_str_len = 0;
 
     data_[HASH_STR_SIZE] = ':';
     nonce_str = (char*)data_ + HASH_STR_SIZE + 1;
 
+    NS_SHA_INIT(&context);
+    NS_SHA_UPDATE(&context, data_, HASH_STR_SIZE);
+
     while(true) {
       nonce_str_len = itoa_16(nonce, nonce_str);
 
-#ifdef __APPLE__
-      CC_SHA256_Init(&context);
-      CC_SHA256_Update(&context, data_, HASH_STR_SIZE);
-      CC_SHA256_Update(&context, nonce_str, nonce_str_len);
-      CC_SHA256_Final(result, &context);
-#else
-      SHA256_Init(&context);
-      SHA256_Update(&context, data_, bytes_transferred);
-      SHA256_Update(&context, nonce_str, nonce_str_len);
-      SHA256_Final(result, &context);
-#endif
+      memcpy(&test_context, &context, sizeof(NS_SHA_CTX));
+
+      NS_SHA_UPDATE(&test_context, nonce_str, nonce_str_len);
+      NS_SHA_FINAL(&test_context, result);
 
       if(result[31] == 0)
         break;
@@ -91,9 +93,6 @@ private:
     }
 
     boost::asio::async_write(socket_, boost::asio::buffer(data_, HASH_STR_SIZE + nonce_str_len + 1), boost::bind(&session::handle_write, this, boost::asio::placeholders::error));
-    
-        boost::system::error_code ignored_ec;
-            socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored_ec);
     socket_.close();
   }
 
@@ -105,6 +104,13 @@ private:
   tcp::socket socket_;
   enum { max_length = 1024 };
   unsigned char data_[max_length];
+
+  NS_SHA_CTX context;
+  NS_SHA_CTX test_context;
+  unsigned char result[HASH_STR_SIZE/2];
+  char *nonce_str;
+  unsigned int nonce;
+  unsigned int nonce_str_len;
 };
 
 class io_service_pool {
@@ -200,13 +206,12 @@ private:
 };
 
 int main(int argc, char* argv[]) {
-  if (argc != 2) {
-    cout << "Usage: ./server <number of threads>\n";
-    return 1;
-  }
+  unsigned cores = boost::thread::hardware_concurrency() / 2;
+
+  printf("detected %i cores\n", cores);
 
   try {
-    server s("0", "1337", atoi(argv[1]));
+    server s("0", "1337", cores);
 
     s.run();
   } catch (std::exception& e) {
