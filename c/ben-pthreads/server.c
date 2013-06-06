@@ -88,7 +88,7 @@ size_t generate_nonce(int n, char *buf, size_t buf_size) {
   size_t i;
   static char *crib = "0123456789abcdef";
   for (i = 0; i < buf_size && n; i++) {
-    buf[i++] = crib[(n & 0xf)];
+    buf[i] = crib[(n & 0xf)];
     n = n >> 4;
   }
   return i;
