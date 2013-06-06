@@ -35,6 +35,8 @@ using namespace std;
 typedef boost::shared_ptr<boost::asio::io_service> io_service_ptr;
 typedef boost::shared_ptr<boost::asio::io_service::work> work_ptr;
 
+NS_SHA_CTX context;
+
 class session {
 public:
   session(boost::asio::io_service& io_service)
@@ -70,18 +72,17 @@ private:
 
   void handle_read(const boost::system::error_code& error, size_t bytes_transferred) {
     nonce = 0;
-    nonce_str_len = 0;
 
     data_[HASH_STR_SIZE] = ':';
     nonce_str = (char*)data_ + HASH_STR_SIZE + 1;
 
-    NS_SHA_INIT(&context);
-    NS_SHA_UPDATE(&context, data_, HASH_STR_SIZE);
+    memcpy(&my_context, &context, sizeof(NS_SHA_CTX));
+    NS_SHA_UPDATE(&my_context, data_, HASH_STR_SIZE);
 
     while(true) {
-      nonce_str_len = itoa_16(nonce, nonce_str);
+      memcpy(&test_context, &my_context, sizeof(NS_SHA_CTX));
 
-      memcpy(&test_context, &context, sizeof(NS_SHA_CTX));
+      nonce_str_len = itoa_16(nonce, nonce_str);
 
       NS_SHA_UPDATE(&test_context, nonce_str, nonce_str_len);
       NS_SHA_FINAL(&test_context, result);
@@ -105,7 +106,7 @@ private:
   enum { max_length = 1024 };
   unsigned char data_[max_length];
 
-  NS_SHA_CTX context;
+  NS_SHA_CTX my_context;
   NS_SHA_CTX test_context;
   unsigned char result[HASH_STR_SIZE/2];
   char *nonce_str;
@@ -209,6 +210,8 @@ int main(int argc, char* argv[]) {
   unsigned cores = boost::thread::hardware_concurrency() / 2;
 
   printf("detected %i cores\n", cores);
+
+  NS_SHA_INIT(&context);
 
   try {
     server s("0", "1337", cores);
