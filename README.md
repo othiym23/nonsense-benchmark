@@ -33,12 +33,12 @@ pipelining could be added, but that would defeat the whole point.
 
 ### Benchmarking
 
-There is a client, written in Node, that you can use to test the performance of
+[There is a client](https://github.com/othiym23/nonsense-wrk), based on
+[wrk](https://github.com/wg/wrk), that you can use to test the performance of
 your implementation. If I have time, I'll write something that will generate a
 leaderboard. The client is reasonably good about not letting you push it
-around, and tries to allow the server a chance to warm up, as well as hitting
-it with a decent level of concurrency. Gaming the client is allowed, but see
-below to understand how doing so may not be so easy.
+around. Gaming the client is allowed, but see below to understand how doing so
+may not be so easy.
 
 ### Caveats
 
@@ -55,7 +55,6 @@ The benchmarking client doesn't trust your server:
 
 ### TODO
 
-* Tweak client performance. You know, with profiling and stuff.
 * Build a distributed client-server version of the benchmarker so that we can
   hit a service from multiple hosts simultaneously and better simulate a
   realistic, intensive workload.
